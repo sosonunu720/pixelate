@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Advanced Image Resizer</title>
+        <style>
+            :root {
+                --primary: #4A90E2;
+                --secondary: #50E3C2;
+                --bg: #f5f6fa;
+                --text: #2d3436;
+                --surface: #ffffff;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #1a1a1a;
+                    --text: #ffffff;
+                    --surface: #2d2d2d;
+                }
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family: 'Segoe UI', sans-serif;
+            }
+
+            body {
+                background: var(--bg);
+                color: var(--text);
+                min-height: 100vh;
+                padding: 1rem;
+            }
+
+            .container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: var(--surface);
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            }
+
+            h1 {
+                text-align: center;
+                margin-bottom: 2rem;
+                color: var(--primary);
+            }
+
+            .drop-zone {
+                border: 2px dashed var(--primary);
+                border-radius: 8px;
+                padding: 2rem;
+                text-align: center;
+                min-height: 300px;
+                max-height: 70vh;
+                overflow: auto;
+                position: relative;
+            }
+
+            .drop-zone::before {
+                content: "🖼️ Drag & Drop Image Here";
+                position: absolute;
+                opacity: 0.3;
+                font-size: 1.2rem;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+
+            .preview-img {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+                display: none;
+                transition: all 0.1s linear;
+            }
+
+            .controls {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin: 2rem 0;
+            }
+
+            .control-group {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            input[type="range"] {
+                width: 100%;
+                margin: 0.5rem 0;
+            }
+
+            button {
+                background: linear-gradient(135deg, var(--primary), var(--secondary));
+                color: white;
+                border: none;
+                padding: 1rem 2rem;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+
+            .size-details {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+
+            .size-card {
+                background: rgba(0,0,0,0.05);
+                padding: 1rem;
+                border-radius: 8px;
+                text-align: center;
+            }
+
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 50px;
+                height: 24px;
+                margin-left: 10px;
+            }
+
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #ccc;
+                transition: .4s;
+                border-radius: 24px;
+            }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 20px;
+                width: 20px;
+                left: 2px;
+                bottom: 2px;
+                background-color: white;
+                transition: .4s;
+                border-radius: 50%;
+            }
+
+            input:checked + .slider {
+                background-color: var(--primary);
+            }
+
+            input:checked + .slider:before {
+                transform: translateX(26px);
+            }
+
+            @media (max-width: 600px) {
+                .controls {
+                    grid-template-columns: 1fr;
+                }
+
+                h1 {
+                    font-size: 1.5rem;
+                }
+
+                .drop-zone {
+                    min-height: 200px;
+                }
+
+                .drop-zone::before {
+                    font-size: 1rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Advanced Image Resizer</h1>
+
+            <div class="drop-zone" id="dropZone">
+                <img id="previewImg" class="preview-img" alt="Preview">
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Width: <span id="widthValue">-</span>px</label>
+                    <input type="range" id="widthInput" min="100" max="4000" value="800">
+                    <label>Height: <span id="heightValue">-</span>px</label>
+                    <input type="range" id="heightInput" min="100" max="4000" value="600">
+                </div>
+
+                <div class="control-group">
+                    <label>Quality: <span id="qualityValue">90%</span></label>
+                    <input type="range" id="qualitySlider" min="0" max="1" step="0.1" value="0.9">
+                    <label>Sharpen: <span id="sharpenValue">0</span></label>
+                    <input type="range" id="sharpenSlider" min="0" max="5" step="0.1" value="0">
+                </div>
+
+                <div class="control-group">
+                    <label for="formatSelect">Output Format</label>
+                    <select id="formatSelect">
+                        <option value="image/jpeg">JPEG</option>
+                        <option value="image/png">PNG</option>
+                        <option value="image/bmp">BMP</option>
+                        <option value="image/gif">GIF</option>
+                        <option value="image/webp">WebP</option>
+                    </select>
+                    <label for="presets">Presets</label>
+                    <select id="presets">
+                        <option value="custom">Custom Size</option>
+                        <option value="1080x1080">Instagram Post (1080x1080)</option>
+                        <option value="820x312">Facebook Cover (820x312)</option>
+                        <option value="1500x500">Twitter Header (1500x500)</option>
+                        <option value="800x400">Custom Banner (800x400)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Aspect Ratio Lock:
+                        <label class="switch">
+                            <input type="checkbox" id="aspectLock">
+                            <span class="slider"></span>
+                        </label>
+                    </label>
+                </div>
+
+                <!-- Add Flip Buttons Here -->
+                <div class="control-group">
+                    <button id="flipHorizontalBtn">Flip Horizontal</button>
+                    <button id="flipVerticalBtn">Flip Vertical</button>
+                </div>
+            </div>
+
+            <div class="size-details">
+                <div class="size-card">
+                    <h3>Original Image</h3>
+                    <p id="originalSize">-</p>
+                </div>
+                <div class="size-card">
+                    <h3>Processed Image</h3>
+                    <p id="newSize">-</p>
+                </div>
+            </div>
+
+            <button id="downloadBtn" onclick="downloadImage()" disabled>
+                Download Resized Image
+            </button>
+        </div>
+
+        <script>
+            const elements = {
+                dropZone: document.getElementById('dropZone'),
+                previewImg: document.getElementById('previewImg'),
+                widthInput: document.getElementById('widthInput'),
+                heightInput: document.getElementById('heightInput'),
+                widthValue: document.getElementById('widthValue'),
+                heightValue: document.getElementById('heightValue'),
+                presets: document.getElementById('presets'),
+                downloadBtn: document.getElementById('downloadBtn'),
+                formatSelect: document.getElementById('formatSelect'),
+                qualitySlider: document.getElementById('qualitySlider'),
+                qualityValue: document.getElementById('qualityValue'),
+                sharpenSlider: document.getElementById('sharpenSlider'),
+                sharpenValue: document.getElementById('sharpenValue'),
+                aspectLock: document.getElementById('aspectLock'),
+                originalSize: document.getElementById('originalSize'),
+                newSize: document.getElementById('newSize'),
+                flipHorizontalBtn: document.getElementById('flipHorizontalBtn'),
+                flipVerticalBtn: document.getElementById('flipVerticalBtn')
+            };
+
+            // Add 800x400 preset dynamically
+            const newPreset = document.createElement('option');
+            newPreset.value = '800x400';
+            newPreset.textContent = 'Custom Banner (800x400)';
+            elements.presets.appendChild(newPreset);
+
+            let originalDimensions = {
+                width: 0,
+                height: 0,
+                fileSize: 0,
+                aspectRatio: 1
+            };
+
+            let timeout;
+
+            // File Handling
+            elements.dropZone.addEventListener('dragover', e => {
+                e.preventDefault();
+                elements.dropZone.style.borderColor = 'var(--secondary)';
+            });
+
+            elements.dropZone.addEventListener('dragleave', () => {
+                elements.dropZone.style.borderColor = 'var(--primary)';
+            });
+
+            elements.dropZone.addEventListener('drop', e => {
+                e.preventDefault();
+                handleImageUpload(e.dataTransfer.files[0]);
+            });
+
+            elements.dropZone.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = e => handleImageUpload(e.target.files[0]);
+                input.click();
+            });
+
+            function handleImageUpload(file) {
+                if (!file?.type.startsWith('image/')) return alert('Please upload an image file');
+
+                const reader = new FileReader();
+                reader.onload = e => {
+                    elements.previewImg.src = e.target.result;
+                    elements.previewImg.style.display = 'block';
+                    elements.downloadBtn.disabled = false;
+
+                    const img = new Image();
+                    img.onload = () => {
+                        originalDimensions = {
+                            width: img.naturalWidth,
+                            height: img.naturalHeight,
+                            fileSize: file.size,
+                            aspectRatio: img.naturalWidth / img.naturalHeight
+                        };
+
+                        updateDimensionDisplays();
+                        resetToOriginalDimensions();
+                        debouncedSizeUpdate();
+                    };
+                    img.src = URL.createObjectURL(file);
+                };
+                reader.readAsDataURL(file);
+            }
+
+            // Dimension Controls
+            elements.widthInput.addEventListener('input', () => handleDimensionChange('width'));
+            elements.heightInput.addEventListener('input', () => handleDimensionChange('height'));
+
+            function handleDimensionChange(source) {
+                if (elements.aspectLock.checked) {
+                    if (source === 'width') {
+                        elements.heightInput.value = Math.round(elements.widthInput.value / originalDimensions.aspectRatio);
+                    } else {
+                        elements.widthInput.value = Math.round(elements.heightInput.value * originalDimensions.aspectRatio);
+                    }
+                }
+
+                updatePreview();
+            }
+
+            function updatePreview() {
+                elements.previewImg.style.width = `${elements.widthInput.value}px`;
+                elements.previewImg.style.height = `${elements.heightInput.value}px`;
+                elements.widthValue.textContent = elements.widthInput.value;
+                elements.heightValue.textContent = elements.heightInput.value;
+                debouncedSizeUpdate();
+            }
+
+            // Presets
+            elements.presets.addEventListener('change', () => {
+                if (elements.presets.value === 'custom') return;
+
+                const [width, height] = elements.presets.value.split('x');
+                elements.widthInput.value = width;
+                elements.heightInput.value = height;
+                updatePreview();
+            });
+
+            // Format & Quality
+            elements.formatSelect.addEventListener('change', () => {
+                elements.qualityControl.style.display =
+                    ['image/jpeg', 'image/webp'].includes(elements.formatSelect.value)
+                    ? 'flex'
+                : 'none';
+                debouncedSizeUpdate();
+            });
+
+            elements.qualitySlider.addEventListener('input', () => {
+                elements.qualityValue.textContent = `${Math.round(elements.qualitySlider.value * 100)}%`;
+                debouncedSizeUpdate();
+            });
+
+            // Sharpen Control
+            elements.sharpenSlider.addEventListener('input', () => {
+                elements.sharpenValue.textContent = elements.sharpenSlider.value;
+                applySharpen();
+                debouncedSizeUpdate();
+            });
+
+            function applySharpen() {
+                const sharpenValue = parseFloat(elements.sharpenSlider.value);
+                if (sharpenValue > 0) {
+                    elements.previewImg.style.filter = `contrast(${1 + sharpenValue * 0.2}) brightness(${1 + sharpenValue * 0.1})`;
+                } else {
+                    elements.previewImg.style.filter = 'none';
+                }
+            }
+
+            // Flip Functionality
+            let isFlippedHorizontal = false;
+            let isFlippedVertical = false;
+
+            elements.flipHorizontalBtn.addEventListener('click', () => {
+                isFlippedHorizontal = !isFlippedHorizontal;
+                updateFlipTransforms();
+            });
+
+            elements.flipVerticalBtn.addEventListener('click', () => {
+                isFlippedVertical = !isFlippedVertical;
+                updateFlipTransforms();
+            });
+
+            function updateFlipTransforms() {
+                let transform = '';
+                if (isFlippedHorizontal) transform += 'scaleX(-1) ';
+                if (isFlippedVertical) transform += 'scaleY(-1) ';
+                elements.previewImg.style.transform = transform.trim();
+            }
+
+            // Download Functionality
+            function downloadImage() {
+                const canvas = document.createElement('canvas');
+                canvas.width = elements.widthInput.value;
+                canvas.height = elements.heightInput.value;
+                const ctx = canvas.getContext('2d');
+
+                // Apply flip transformations to the canvas
+                if (isFlippedHorizontal) {
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                }
+                if (isFlippedVertical) {
+                    ctx.translate(0, canvas.height);
+                    ctx.scale(1, -1);
+                }
+
+                ctx.drawImage(elements.previewImg, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `resized-image-${Date.now()}.${elements.formatSelect.value.split('/')[1]}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, elements.formatSelect.value, elements.qualitySlider.value);
+            }
+
+            // Size Calculations
+            function formatFileSize(bytes) {
+                return bytes > 1024 * 1024
+                    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+                : `${(bytes / 1024).toFixed(1)} KB`;
+            }
+
+            function updateDimensionDisplays() {
+                elements.originalSize.textContent =
+                    `${originalDimensions.width}x${originalDimensions.height}\n` +
+                    `${formatFileSize(originalDimensions.fileSize)}`;
+            }
+
+            function resetToOriginalDimensions() {
+                elements.widthInput.value = originalDimensions.width;
+                elements.heightInput.value = originalDimensions.height;
+                updatePreview();
+            }
+
+            function debouncedSizeUpdate() {
+                clearTimeout(timeout);
+                timeout = setTimeout(calculateNewSize, 300);
+            }
+
+            function calculateNewSize() {
+                if (!elements.previewImg.src) return;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = elements.widthInput.value;
+                canvas.height = elements.heightInput.value;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(elements.previewImg, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(blob => {
+                    elements.newSize.textContent =
+                        `${elements.widthInput.value}x${elements.heightInput.value}\n` +
+                        `${formatFileSize(blob.size)}`;
+                }, elements.formatSelect.value, elements.qualitySlider.value);
+            }
+        </script>
+    </body>
+</html>
